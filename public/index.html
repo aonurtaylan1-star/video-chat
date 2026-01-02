@@ -3,129 +3,101 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Konisma - Canlı Sohbet</title>
+    <title>Konisma Pro - Görüntülü Sohbet</title>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
-        :root { --indigo: #3f51b5; --bg: #f8f9fa; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; overflow: hidden; }
-        
-        /* Giriş Ekranı Tasarımı */
-        .container { max-width: 500px; margin: 20px auto; padding: 0 15px; }
-        .setup-card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; }
-        input { width: 90%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 12px; font-size: 16px; }
-        .join-btn { background: var(--indigo); color: white; border: none; padding: 12px 25px; border-radius: 12px; cursor: pointer; font-weight: bold; width: 95%; margin-top: 10px; }
+        :root { --indigo: #3f51b5; --red: #ff4757; --glass: rgba(0, 0, 0, 0.5); }
+        body { font-family: 'Segoe UI', sans-serif; background: #121212; margin: 0; overflow: hidden; color: white; }
 
-        /* VİDEO SAYFASI - TAM EKRAN DİKEY DÜZEN */
+        /* GİRİŞ EKRANI */
+        .container { max-width: 450px; margin: 50px auto; padding: 20px; }
+        .setup-card { background: #1e1e1e; padding: 30px; border-radius: 24px; box-shadow: 0 15px 35px rgba(0,0,0,0.5); text-align: center; border: 1px solid #333; }
+        input { width: 100%; padding: 14px; margin: 10px 0; border: 1px solid #333; border-radius: 12px; background: #252525; color: white; box-sizing: border-box; }
+        .join-btn { background: var(--indigo); color: white; border: none; padding: 14px; border-radius: 12px; cursor: pointer; width: 100%; font-weight: bold; font-size: 16px; margin-top: 15px; }
+        .room-card { background: #252525; padding: 15px; border-radius: 16px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; border: 1px solid #333; }
+
+        /* VİDEO EKRANI (KASPERSKY ÖRNEĞİNDEKİ GİBİ) */
         #video-page { 
             display: none; 
-            position: fixed; 
-            top: 0; left: 0; 
-            width: 100%; height: 100%; 
-            background: #000; 
-            flex-direction: column; 
-            z-index: 9999; 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: #000; flex-direction: column; 
         }
 
-        /* Ekranı ikiye bölen yapı */
         .video-wrapper { 
-            flex: 1; 
-            display: flex; 
-            flex-direction: column; 
-            height: calc(100% - 100px); /* Kontrol butonları için yer bırakır */
+            display: flex; flex-direction: column; height: 100vh; width: 100vw; 
         }
 
         .v-slot { 
-            flex: 1; 
-            position: relative; 
-            margin: 5px; 
-            background: #111; 
-            border-radius: 15px; 
-            overflow: hidden; 
-            border: 2px solid #333;
+            flex: 1; position: relative; overflow: hidden; 
+            border-bottom: 2px solid #000;
         }
 
         video { 
-            width: 100%; 
-            height: 100%; 
-            object-fit: cover; /* Videoyu kırparak alanı doldurur */
+            width: 100%; height: 100%; object-fit: cover; 
+            background: #1a1a1a;
         }
 
-        /* İsim Etiketleri - Videonun Altında Ortalı */
+        /* İsim Etiketleri - Kaspersky Tarzı */
         .name-tag { 
-            position: absolute; 
-            bottom: 15px; 
-            left: 50%; 
-            transform: translateX(-50%); 
-            background: rgba(0, 0, 0, 0.6); 
-            color: white; 
-            padding: 5px 15px; 
-            border-radius: 20px; 
-            font-size: 14px; 
-            font-weight: 500;
-            backdrop-filter: blur(4px);
+            position: absolute; bottom: 20px; left: 20px; 
+            background: var(--glass); color: white; 
+            padding: 8px 18px; border-radius: 30px; 
+            font-size: 14px; backdrop-filter: blur(8px);
+            display: flex; align-items: center; gap: 8px;
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
-        /* Kontrol Butonları (Alt Kısım) */
+        /* Yüzer Kontrol Paneli */
         .controls { 
-            height: 100px; 
-            display: flex; 
-            justify-content: center; 
-            align-items: center; 
-            gap: 40px; 
-            background: #000; 
+            position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%);
+            display: flex; gap: 20px; z-index: 10;
         }
 
         .circle-btn { 
-            width: 60px; height: 60px; 
-            border-radius: 50%; 
-            border: none; 
-            background: #222; 
-            color: white; 
-            cursor: pointer; 
-            display: flex; 
-            align-items: center; 
-            justify-content: center; 
+            width: 55px; height: 55px; border-radius: 50%; border: none; 
+            background: var(--glass); color: white; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center;
+            backdrop-filter: blur(10px); transition: 0.3s;
+            border: 1px solid rgba(255,255,255,0.2);
         }
 
-        .btn-red { background: #f44336 !important; }
-
-        /* Oda Listesi */
-        .room-card { background: white; padding: 15px; border-radius: 15px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .circle-btn:hover { background: rgba(255,255,255,0.2); }
+        .btn-red { background: var(--red) !important; }
     </style>
 </head>
 <body>
 
 <div id="home-page">
-    <div style="background: var(--indigo); color: white; padding: 20px; text-align: center; font-weight: bold; font-size: 20px;">KONISMA SERVER</div>
     <div class="container">
         <div class="setup-card">
+            <h2 style="color: var(--indigo)">Konisma Pro</h2>
             <input type="text" id="user-name" placeholder="Adınız">
-            <input type="text" id="room-name" placeholder="Oda Adı">
-            <button class="join-btn" onclick="initCall(document.getElementById('room-name').value)">Oda Kur / Katıl</button>
+            <input type="text" id="room-name" placeholder="Oda / Server Adı">
+            <button class="join-btn" onclick="initCall(document.getElementById('room-name').value)">BAŞLAT</button>
         </div>
-        <h3 style="margin-top: 25px; color: #444;">Aktif Odalar</h3>
+        <h3 style="margin-top: 30px; color: #888;">Aktif Serverlar</h3>
         <div id="room-list"></div>
     </div>
 </div>
 
 <div id="video-page">
     <div class="video-wrapper">
-        <div class="v-slot" id="local-slot">
+        <div class="v-slot">
             <video id="local-video" autoplay muted playsinline></video>
-            <div class="name-tag" id="local-name-tag">Siz</div>
+            <div class="name-tag"><span class="material-icons" style="font-size: 16px">account_circle</span> <span id="local-name-tag">Siz</span></div>
         </div>
-        <div class="v-slot" id="remote-slot">
+        <div class="v-slot">
             <video id="remote-video" autoplay playsinline></video>
-            <div class="name-tag" id="remote-name-tag">Bekleniyor...</div>
+            <div class="name-tag"><span class="material-icons" style="font-size: 16px">person</span> <span id="remote-name-tag">Bekleniyor...</span></div>
         </div>
     </div>
     
     <div class="controls">
         <button class="circle-btn" onclick="toggleMic()"><span class="material-icons" id="mic-icon">mic</span></button>
         <button class="circle-btn btn-red" onclick="location.reload()"><span class="material-icons">call_end</span></button>
-        <button class="circle-btn" onclick="switchCam()"><span class="material-icons">cameraswitch</span></button>
+        <button class="circle-btn" onclick="toggleVid()"><span class="material-icons" id="vid-icon">videocam</span></button>
     </div>
 </div>
 
@@ -133,27 +105,27 @@
     const socket = io();
     let myStream;
     let peer;
-    let currentPeerId;
 
+    // Server listesini güncelle
     socket.on('rooms-update', (rooms) => {
         const list = document.getElementById('room-list');
-        list.innerHTML = rooms.length ? '' : '<p style="text-align:center;color:#999">Henüz aktif oda yok.</p>';
+        list.innerHTML = rooms.length ? '' : '<p style="text-align:center;color:#555">Aktif server yok.</p>';
         rooms.forEach(room => {
             list.innerHTML += `
                 <div class="room-card">
-                    <div><strong>${room.id}</strong><br><small>Kurucu: ${room.creator}</small></div>
-                    <button class="join-btn" style="width: auto; padding: 8px 15px;" onclick="initCall('${room.id}')">KATIL (${room.count}/2)</button>
+                    <div><strong>${room.id}</strong><br><small style="color:#888">${room.count}/2 Kişi</small></div>
+                    <button class="join-btn" style="width:auto; padding:8px 15px; margin:0" onclick="initCall('${room.id}')">KATIL</button>
                 </div>`;
         });
     });
 
     async function initCall(roomId) {
         const name = document.getElementById('user-name').value;
-        if(!name || !roomId) return alert("İsim ve Oda Adı girin!");
+        if(!name || !roomId) return alert("Lütfen eksik alanları doldurun.");
 
         document.getElementById('home-page').style.display = 'none';
         document.getElementById('video-page').style.display = 'flex';
-        document.getElementById('local-name-tag').innerText = name + " (Siz)";
+        document.getElementById('local-name-tag').innerText = name;
 
         myStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
         document.getElementById('local-video').srcObject = myStream;
@@ -164,22 +136,20 @@
             socket.emit('join-room', roomId, id, name);
         });
 
-        // Arama Geldiğinde (Cevap veren taraf)
+        // Arama Geldiğinde
         peer.on('call', call => {
             call.answer(myStream);
             call.on('stream', userStream => {
-                const remoteVid = document.getElementById('remote-video');
-                remoteVid.srcObject = userStream;
-                document.getElementById('remote-name-tag').innerText = "Katılımcı Bağlandı";
+                document.getElementById('remote-video').srcObject = userStream;
+                document.getElementById('remote-name-tag').innerText = "Bağlandı";
             });
         });
 
-        // Yeni Biri Bağlandığında (Arayan taraf)
+        // Yeni Biri Katıldığında
         socket.on('user-connected', (userId, userName) => {
             const call = peer.call(userId, myStream);
             call.on('stream', userStream => {
-                const remoteVid = document.getElementById('remote-video');
-                remoteVid.srcObject = userStream;
+                document.getElementById('remote-video').srcObject = userStream;
                 document.getElementById('remote-name-tag').innerText = userName;
             });
         });
@@ -191,10 +161,10 @@
         document.getElementById('mic-icon').innerText = track.enabled ? 'mic' : 'mic_off';
     }
 
-    // Kamera Değiştirme (Mobil uyumluluk için)
-    async function switchCam() {
-        // Web tarayıcılarında kamera değişimi için stream'i durdurup yeniden başlatmak gerekir
-        alert("Kamera değiştirme özelliği mobil cihazlarda aktiftir.");
+    function toggleVid() {
+        const track = myStream.getVideoTracks()[0];
+        track.enabled = !track.enabled;
+        document.getElementById('vid-icon').innerText = track.enabled ? 'videocam' : 'videocam_off';
     }
 </script>
 </body>
