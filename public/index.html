@@ -3,67 +3,63 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Konisma - Görüntülü Sohbet</title>
+    <title>Konisma - Canlı Odalar</title>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
-        :root { --indigo: #3f51b5; --red: #f44336; --dark: #1a1a1a; }
-        body { font-family: 'Roboto', sans-serif; background: #f5f5f5; margin: 0; color: #333; }
+        :root { --indigo: #3f51b5; --bg: #f0f2f5; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; }
+        .app-bar { background: var(--indigo); color: white; padding: 15px; text-align: center; font-size: 20px; font-weight: bold; box-shadow: 0 2px 10px rgba(0,0,0,0.2); }
         
-        /* Giriş Kartı (Flutter buildInputCard benzeri) */
-        .home-page { display: flex; flex-direction: column; align-items: center; padding: 20px; }
-        .input-card { background: white; padding: 30px; border-radius: 24px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); width: 100%; max-width: 400px; margin-top: 50px; }
-        h1 { color: var(---indigo); font-weight: bold; text-align: center; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 12px; box-sizing: border-box; font-size: 16px; }
-        .btn-group { display: flex; gap: 10px; margin-top: 20px; }
-        button { flex: 1; padding: 15px; border: none; border-radius: 15px; cursor: pointer; font-weight: bold; transition: 0.3s; }
-        .btn-primary { background: var(--indigo); color: white; }
-        .btn-outline { background: white; border: 2px solid var(--indigo); color: var(--indigo); }
-
-        /* Video Sayfası (Flutter VideoPage benzeri) */
-        #video-page { display: none; background: black; height: 100vh; width: 100vw; flex-direction: column; position: fixed; top: 0; }
-        .video-container { flex: 1; display: flex; flex-direction: column; padding: 10px; gap: 10px; }
-        .video-slot { flex: 1; background: #222; border-radius: 20px; overflow: hidden; position: relative; border: 2px solid #333; }
-        .video-slot.speaking { border-color: #00ff00; box-shadow: 0 0 15px #00ff0055; }
+        /* Oda Listesi Tasarımı (Flutter ListView benzeri) */
+        .container { max-width: 500px; margin: 20px auto; padding: 0 15px; }
+        .room-card { background: white; border-radius: 15px; padding: 15px; margin-bottom: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); border-left: 5px solid var(--indigo); }
+        .room-info h3 { margin: 0; color: #333; }
+        .room-info p { margin: 5px 0 0; color: #666; font-size: 14px; }
+        .join-btn { background: var(--indigo); color: white; border: none; padding: 8px 16px; border-radius: 10px; cursor: pointer; }
+        
+        /* Giriş Bölümü */
+        .setup-card { background: white; padding: 25px; border-radius: 20px; margin-bottom: 20px; text-align: center; }
+        input { width: 80%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 10px; outline: none; }
+        
+        /* Video Ekranı */
+        #video-page { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; flex-direction: column; z-index: 100; }
+        .video-grid { flex: 1; display: grid; grid-template-rows: 1fr 1fr; gap: 5px; padding: 5px; }
+        .v-slot { position: relative; background: #1a1a1a; border-radius: 15px; overflow: hidden; }
         video { width: 100%; height: 100%; object-fit: cover; }
-        .user-label { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.5); color: white; padding: 5px 12px; border-radius: 20px; font-size: 14px; }
-
-        /* Kontrol Butonları (Flutter _buildButton benzeri) */
-        .controls { background: var(--dark); padding: 25px; border-radius: 32px 32px 0 0; display: flex; justify-content: center; gap: 30px; }
-        .icon-btn { width: 60px; height: 60px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.1); color: white; cursor: pointer; }
-        .icon-btn.red { background: var(--red); }
+        .label { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.6); color: white; padding: 4px 10px; border-radius: 10px; font-size: 12px; }
+        .controls { height: 100px; display: flex; justify-content: center; align-items: center; gap: 30px; background: #1a1a1a; }
+        .circle-btn { width: 55px; height: 55px; border-radius: 50%; border: none; background: #333; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .btn-red { background: #f44336; }
     </style>
 </head>
 <body>
 
-<div id="home-page" class="home-page">
-    <div class="input-card">
-        <h1>Konisma</h1>
-        <input type="text" id="name-input" placeholder="Adınız">
-        <input type="text" id="room-input" placeholder="Oda Kodu">
-        <div class="btn-group">
-            <button class="btn-primary" onclick="startApp(true)">Oda Kur</button>
-            <button class="btn-outline" onclick="startApp(false)">Katıl</button>
+<div id="home-page">
+    <div class="app-bar">Konisma - Canlı Sohbet</div>
+    <div class="container">
+        <div class="setup-card">
+            <input type="text" id="user-name" placeholder="Adınız">
+            <input type="text" id="new-room-name" placeholder="Yeni Oda Adı">
+            <button class="join-btn" style="width: 85%; margin-top: 10px;" onclick="createRoom()">Oda Oluştur</button>
+        </div>
+        
+        <h4 style="color: #555; margin-left: 5px;">Aktif Odalar</h4>
+        <div id="room-list">
+            <p style="text-align: center; color: #999;">Henüz aktif oda yok...</p>
         </div>
     </div>
 </div>
 
 <div id="video-page">
-    <div class="video-container">
-        <div class="video-slot" id="local-slot">
-            <video id="local-video" autoplay muted playsinline></video>
-            <div class="user-label" id="local-name">Siz</div>
-        </div>
-        <div class="video-slot" id="remote-slot">
-            <video id="remote-video" autoplay playsinline></video>
-            <div class="user-label" id="remote-name">Bekleniyor...</div>
-        </div>
+    <div class="video-grid">
+        <div class="v-slot"><video id="local-v" autoplay muted playsinline></video><div class="label">Siz</div></div>
+        <div class="v-slot"><video id="remote-v" autoplay playsinline></video><div class="label" id="remote-label">Bekleniyor...</div></div>
     </div>
     <div class="controls">
-        <div class="icon-btn" onclick="toggleMic()"><span class="material-icons" id="mic-icon">mic</span></div>
-        <div class="icon-btn red" onclick="location.reload()"><span class="material-icons">call_end</span></div>
-        <div class="icon-btn" onclick="switchCam()"><span class="material-icons">cameraswitch</span></div>
+        <button class="circle-btn" onclick="toggleMute()"><span class="material-icons" id="mic-icon">mic</span></button>
+        <button class="circle-btn btn-red" onclick="location.reload()"><span class="material-icons">call_end</span></button>
     </div>
 </div>
 
@@ -72,50 +68,70 @@
     let myStream;
     let peer;
 
-    async function startApp(isCreator) {
-        const name = document.getElementById('name-input').value;
-        const room = document.getElementById('room-input').value;
-        if(!name || !room) return alert("Lütfen boş bırakmayın!");
+    // Oda Listesini Güncelle (Firebase StreamBuilder gibi)
+    socket.on('rooms-update', (rooms) => {
+        const listDiv = document.getElementById('room-list');
+        if (rooms.length === 0) {
+            listDiv.innerHTML = '<p style="text-align: center; color: #999;">Henüz aktif oda yok...</p>';
+            return;
+        }
+        listDiv.innerHTML = rooms.map(room => `
+            <div class="room-card">
+                <div class="room-info">
+                    <h3>${room.name}</h3>
+                    <p>${room.count}/2 Katılımcı</p>
+                </div>
+                <button class="join-btn" onclick="joinSpecificRoom('${room.id}')" ${room.count >= 2 ? 'disabled style="background:#ccc"' : ''}>
+                    ${room.count >= 2 ? 'Dolu' : 'Katıl'}
+                </button>
+            </div>
+        `).join('');
+    });
 
+    async function createRoom() {
+        const rName = document.getElementById('new-room-name').value;
+        if(rName) joinSpecificRoom(rName);
+    }
+
+    async function joinSpecificRoom(roomId) {
+        const uName = document.getElementById('user-name').value || "Misafir";
+        
         document.getElementById('home-page').style.display = 'none';
         document.getElementById('video-page').style.display = 'flex';
-        document.getElementById('local-name').innerText = name + " (Siz)";
 
         myStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
-        document.getElementById('local-video').srcObject = myStream;
+        document.getElementById('local-v').srcObject = myStream;
 
         peer = new Peer(undefined, { path: '/peerjs', host: '/', port: '443', secure: true });
 
         peer.on('open', id => {
-            socket.emit('join-room', room, id, name);
+            socket.emit('join-room', roomId, id, uName);
         });
 
         socket.on('user-connected', (userId, userName) => {
             const call = peer.call(userId, myStream);
-            call.on('stream', userStream => addRemoteStream(userStream, userName));
+            call.on('stream', userStream => {
+                document.getElementById('remote-v').srcObject = userStream;
+                document.getElementById('remote-label').innerText = userName;
+            });
         });
 
         peer.on('call', call => {
             call.answer(myStream);
-            call.on('stream', userStream => addRemoteStream(userStream, "Katılımcı"));
-        });
-
-        socket.on('room-full', () => {
-            alert("Bu oda dolu!");
-            location.reload();
+            call.on('stream', userStream => {
+                document.getElementById('remote-v').srcObject = userStream;
+                document.getElementById('remote-label').innerText = "Bağlandı";
+            });
         });
     }
 
-    function addRemoteStream(stream, name) {
-        document.getElementById('remote-video').srcObject = stream;
-        document.getElementById('remote-name').innerText = name;
+    function toggleMute() {
+        const track = myStream.getAudioTracks()[0];
+        track.enabled = !track.enabled;
+        document.getElementById('mic-icon').innerText = track.enabled ? 'mic' : 'mic_off';
     }
 
-    function toggleMic() {
-        const audioTrack = myStream.getAudioTracks()[0];
-        audioTrack.enabled = !audioTrack.enabled;
-        document.getElementById('mic-icon').innerText = audioTrack.enabled ? 'mic' : 'mic_off';
-    }
+    socket.on('error-msg', (msg) => { alert(msg); location.reload(); });
 </script>
 </body>
 </html>
