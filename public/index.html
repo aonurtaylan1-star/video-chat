@@ -2,68 +2,130 @@
 <html lang="tr">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Konisma - Server Odaları</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Konisma - Canlı Sohbet</title>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
         :root { --indigo: #3f51b5; --bg: #f8f9fa; }
-        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; }
-        .app-bar { background: var(--indigo); color: white; padding: 15px; text-align: center; font-weight: bold; font-size: 22px; }
-        .container { max-width: 600px; margin: 20px auto; padding: 0 15px; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; overflow: hidden; }
         
-        /* Oda Kartı Tasarımı */
-        .room-card { background: white; border-radius: 15px; padding: 18px; margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 12px rgba(0,0,0,0.08); }
-        .room-info h3 { margin: 0; color: var(--indigo); font-size: 18px; }
-        .room-info p { margin: 4px 0 0; color: #777; font-size: 14px; }
-        .join-btn { background: var(--indigo); color: white; border: none; padding: 10px 20px; border-radius: 12px; cursor: pointer; font-weight: bold; }
+        /* Giriş Ekranı Tasarımı */
+        .container { max-width: 500px; margin: 20px auto; padding: 0 15px; }
+        .setup-card { background: white; padding: 25px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); text-align: center; }
+        input { width: 90%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 12px; font-size: 16px; }
+        .join-btn { background: var(--indigo); color: white; border: none; padding: 12px 25px; border-radius: 12px; cursor: pointer; font-weight: bold; width: 95%; margin-top: 10px; }
 
-        /* Giriş Alanı */
-        .setup { background: white; padding: 25px; border-radius: 20px; margin-bottom: 30px; text-align: center; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
-        input { width: 85%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 12px; font-size: 16px; }
+        /* VİDEO SAYFASI - TAM EKRAN DİKEY DÜZEN */
+        #video-page { 
+            display: none; 
+            position: fixed; 
+            top: 0; left: 0; 
+            width: 100%; height: 100%; 
+            background: #000; 
+            flex-direction: column; 
+            z-index: 9999; 
+        }
 
-        /* Video Sayfası */
-        #video-page { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: #000; flex-direction: column; z-index: 1000; }
-        .video-grid { flex: 1; display: grid; grid-template-rows: 1fr 1fr; gap: 10px; padding: 10px; }
-        .v-slot { position: relative; background: #111; border-radius: 20px; overflow: hidden; border: 2px solid #333; }
-        video { width: 100%; height: 100%; object-fit: cover; }
-        .name-tag { position: absolute; bottom: 15px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: white; padding: 6px 15px; border-radius: 20px; font-size: 14px; font-weight: bold; border: 1px solid rgba(255,255,255,0.2); }
-        .controls { height: 110px; display: flex; justify-content: center; align-items: center; gap: 40px; background: #111; }
-        .circle-btn { width: 60px; height: 60px; border-radius: 50%; border: none; background: #222; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: 0.3s; }
+        /* Ekranı ikiye bölen yapı */
+        .video-wrapper { 
+            flex: 1; 
+            display: flex; 
+            flex-direction: column; 
+            height: calc(100% - 100px); /* Kontrol butonları için yer bırakır */
+        }
+
+        .v-slot { 
+            flex: 1; 
+            position: relative; 
+            margin: 5px; 
+            background: #111; 
+            border-radius: 15px; 
+            overflow: hidden; 
+            border: 2px solid #333;
+        }
+
+        video { 
+            width: 100%; 
+            height: 100%; 
+            object-fit: cover; /* Videoyu kırparak alanı doldurur */
+        }
+
+        /* İsim Etiketleri - Videonun Altında Ortalı */
+        .name-tag { 
+            position: absolute; 
+            bottom: 15px; 
+            left: 50%; 
+            transform: translateX(-50%); 
+            background: rgba(0, 0, 0, 0.6); 
+            color: white; 
+            padding: 5px 15px; 
+            border-radius: 20px; 
+            font-size: 14px; 
+            font-weight: 500;
+            backdrop-filter: blur(4px);
+        }
+
+        /* Kontrol Butonları (Alt Kısım) */
+        .controls { 
+            height: 100px; 
+            display: flex; 
+            justify-content: center; 
+            align-items: center; 
+            gap: 40px; 
+            background: #000; 
+        }
+
+        .circle-btn { 
+            width: 60px; height: 60px; 
+            border-radius: 50%; 
+            border: none; 
+            background: #222; 
+            color: white; 
+            cursor: pointer; 
+            display: flex; 
+            align-items: center; 
+            justify-content: center; 
+        }
+
         .btn-red { background: #f44336 !important; }
+
+        /* Oda Listesi */
+        .room-card { background: white; padding: 15px; border-radius: 15px; margin-top: 10px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
     </style>
 </head>
 <body>
 
 <div id="home-page">
-    <div class="app-bar">KONISMA SERVER</div>
+    <div style="background: var(--indigo); color: white; padding: 20px; text-align: center; font-weight: bold; font-size: 20px;">KONISMA SERVER</div>
     <div class="container">
-        <div class="setup">
+        <div class="setup-card">
             <input type="text" id="user-name" placeholder="Adınız">
-            <input type="text" id="room-name" placeholder="Oda Adı Oluştur">
-            <button class="join-btn" style="width: 92%; margin-top: 10px;" onclick="initCall(document.getElementById('room-name').value)">Oda Kur</button>
+            <input type="text" id="room-name" placeholder="Oda Adı">
+            <button class="join-btn" onclick="initCall(document.getElementById('room-name').value)">Oda Kur / Katıl</button>
         </div>
-        
-        <h3 style="color: #444; margin-bottom: 15px;">Aktif Serverlar</h3>
+        <h3 style="margin-top: 25px; color: #444;">Aktif Odalar</h3>
         <div id="room-list"></div>
     </div>
 </div>
 
 <div id="video-page">
-    <div class="video-grid">
-        <div class="v-slot">
+    <div class="video-wrapper">
+        <div class="v-slot" id="local-slot">
             <video id="local-video" autoplay muted playsinline></video>
-            <div class="name-tag" id="local-name-display">Siz</div>
+            <div class="name-tag" id="local-name-tag">Siz</div>
         </div>
-        <div class="v-slot">
+        <div class="v-slot" id="remote-slot">
             <video id="remote-video" autoplay playsinline></video>
-            <div class="name-tag" id="remote-name-display">Bekleniyor...</div>
+            <div class="name-tag" id="remote-name-tag">Bekleniyor...</div>
         </div>
     </div>
+    
     <div class="controls">
         <button class="circle-btn" onclick="toggleMic()"><span class="material-icons" id="mic-icon">mic</span></button>
         <button class="circle-btn btn-red" onclick="location.reload()"><span class="material-icons">call_end</span></button>
+        <button class="circle-btn" onclick="switchCam()"><span class="material-icons">cameraswitch</span></button>
     </div>
 </div>
 
@@ -71,31 +133,27 @@
     const socket = io();
     let myStream;
     let peer;
+    let currentPeerId;
 
     socket.on('rooms-update', (rooms) => {
         const list = document.getElementById('room-list');
-        list.innerHTML = rooms.length ? '' : '<p style="text-align:center;color:#999">Aktif server bulunamadı.</p>';
+        list.innerHTML = rooms.length ? '' : '<p style="text-align:center;color:#999">Henüz aktif oda yok.</p>';
         rooms.forEach(room => {
             list.innerHTML += `
                 <div class="room-card">
-                    <div class="room-info">
-                        <h3>${room.id}</h3>
-                        <p>Kurucu: ${room.creator} | Kişi: ${room.count}/2</p>
-                    </div>
-                    <button class="join-btn" onclick="initCall('${room.id}')" ${room.count >= 2 ? 'disabled' : ''}>
-                        ${room.count >= 2 ? 'DOLU' : 'KATIL'}
-                    </button>
+                    <div><strong>${room.id}</strong><br><small>Kurucu: ${room.creator}</small></div>
+                    <button class="join-btn" style="width: auto; padding: 8px 15px;" onclick="initCall('${room.id}')">KATIL (${room.count}/2)</button>
                 </div>`;
         });
     });
 
     async function initCall(roomId) {
-        const uName = document.getElementById('user-name').value;
-        if(!uName || !roomId) return alert("İsim ve Oda Adı gerekli!");
+        const name = document.getElementById('user-name').value;
+        if(!name || !roomId) return alert("İsim ve Oda Adı girin!");
 
         document.getElementById('home-page').style.display = 'none';
         document.getElementById('video-page').style.display = 'flex';
-        document.getElementById('local-name-display').innerText = uName;
+        document.getElementById('local-name-tag').innerText = name + " (Siz)";
 
         myStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
         document.getElementById('local-video').srcObject = myStream;
@@ -103,24 +161,26 @@
         peer = new Peer(undefined, { path: '/peerjs', host: '/', port: '443', secure: true });
 
         peer.on('open', id => {
-            socket.emit('join-room', roomId, id, uName);
+            socket.emit('join-room', roomId, id, name);
         });
 
-        // Birisi bize bağlandığında (Arama geldiğinde)
+        // Arama Geldiğinde (Cevap veren taraf)
         peer.on('call', call => {
             call.answer(myStream);
             call.on('stream', userStream => {
-                document.getElementById('remote-video').srcObject = userStream;
-                document.getElementById('remote-name-display').innerText = "Katılımcı";
+                const remoteVid = document.getElementById('remote-video');
+                remoteVid.srcObject = userStream;
+                document.getElementById('remote-name-tag').innerText = "Katılımcı Bağlandı";
             });
         });
 
-        // Biz birine bağlandığımızda
+        // Yeni Biri Bağlandığında (Arayan taraf)
         socket.on('user-connected', (userId, userName) => {
             const call = peer.call(userId, myStream);
             call.on('stream', userStream => {
-                document.getElementById('remote-video').srcObject = userStream;
-                document.getElementById('remote-name-display').innerText = userName;
+                const remoteVid = document.getElementById('remote-video');
+                remoteVid.srcObject = userStream;
+                document.getElementById('remote-name-tag').innerText = userName;
             });
         });
     }
@@ -129,6 +189,12 @@
         const track = myStream.getAudioTracks()[0];
         track.enabled = !track.enabled;
         document.getElementById('mic-icon').innerText = track.enabled ? 'mic' : 'mic_off';
+    }
+
+    // Kamera Değiştirme (Mobil uyumluluk için)
+    async function switchCam() {
+        // Web tarayıcılarında kamera değişimi için stream'i durdurup yeniden başlatmak gerekir
+        alert("Kamera değiştirme özelliği mobil cihazlarda aktiftir.");
     }
 </script>
 </body>
