@@ -1,63 +1,101 @@
 <!DOCTYPE html>
-<html>
+<html lang="tr">
 <head>
-    <title>Canlı Görüntülü Sohbet</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Konisma Web - Görüntülü Sohbet</title>
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <style>
-        #video-grid { display: grid; grid-template-columns: repeat(auto-fill, 300px); grid-gap: 10px; }
-        video { width: 100%; background: #222; border-radius: 10px; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #f0f2f5; margin: 0; display: flex; flex-direction: column; height: 100vh; }
+        .container { max-width: 800px; margin: auto; background: white; padding: 20px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 90%; }
+        header { text-align: center; color: #3f51b5; margin-bottom: 20px; }
+        .input-group { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+        input { padding: 12px; border: 1px solid #ddd; border-radius: 10px; font-size: 16px; }
+        button { padding: 12px; border: none; border-radius: 10px; background: #3f51b5; color: white; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { background: #303f9f; }
+        #video-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-top: 20px; display: none; }
+        video { width: 100%; border-radius: 15px; background: #000; border: 3px solid #eee; }
+        .status { text-align: center; color: #666; margin-top: 10px; font-weight: 500; }
+        .controls { display: flex; justify-content: center; gap: 20px; margin-top: 20px; display: none; }
     </style>
 </head>
 <body>
-    <h3>Senin ID: <span id="my-id">...</span></h3>
-    <input type="text" id="peer-id" placeholder="Bağlanılacak ID">
-    <button onclick="connectToPeer()">Bağlan</button>
+
+<div class="container">
+    <header><h1>Konisma Web</h1></header>
+
+    <div id="login-area">
+        <div class="input-group">
+            <input type="text" id="room-id" placeholder="Oda Adı Girin (Örn: oda123)">
+            <button onclick="joinRoom()">Odaya Katıl / Oluştur</button>
+        </div>
+        <p class="status">Bir oda adı girerek görüşmeyi başlatın.</p>
+    </div>
+
+    <div id="video-grid">
+        <video id="local-video" autoplay muted playsinline></video>
+        <video id="remote-video" autoplay playsinline></video>
+    </div>
+
+    <div class="controls" id="controls">
+        <button onclick="toggleAudio()" style="background: #666;">Sesi Kapat</button>
+        <button onclick="location.reload()" style="background: #f44336;">Ayrıl</button>
+    </div>
     
-    <div id="video-grid"></div>
+    <p id="room-status" class="status" style="display: none;"></p>
+</div>
 
-    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
-    <script>
-        const peer = new Peer(undefined, {
-            path: '/myapp',
+<script>
+    let localStream;
+    let peer;
+    let currentCall;
+
+    async function joinRoom() {
+        const roomId = document.getElementById('room-id').value;
+        if (!roomId) return alert("Lütfen oda adı girin!");
+
+        document.getElementById('login-area').style.display = 'none';
+        document.getElementById('video-grid').style.display = 'grid';
+        document.getElementById('controls').style.display = 'flex';
+        document.getElementById('room-status').style.display = 'block';
+        document.getElementById('room-status').innerText = "Bağlanılıyor...";
+
+        // Kamerayı al
+        localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        document.getElementById('local-video').srcObject = localStream;
+
+        // PeerJS bağlantısı (Render URL'sine göre ayarlı)
+        peer = new Peer(null, {
+            path: '/peerjs',
             host: '/',
-            port: '443'
+            port: '443',
+            secure: true
         });
 
-        const videoGrid = document.getElementById('video-grid');
-        const myVideo = document.createElement('video');
-        myVideo.muted = true;
+        peer.on('open', (id) => {
+            console.log('ID alındı: ' + id);
+            // Burada oda mantığını PeerJS ID'si üzerinden değil, isim üzerinden kuruyoruz
+            // Basitlik için: İkinci kişi odaya bağlandığında birinciyi aramalı.
+            // (Not: Gerçek bir 'oda' listesi için veritabanı gerekir, burada manuel ID paylaşımı simüle ediliyor)
+            document.getElementById('room-status').innerText = "Oda: " + roomId + " | ID'nizi kopyalayın: " + id;
+        });
 
-        navigator.mediaDevices.getUserMedia({ video: true, audio: true }).then(stream => {
-            addVideoStream(myVideo, stream);
-
-            peer.on('call', call => {
-                call.answer(stream);
-                const video = document.createElement('video');
-                call.on('stream', userVideoStream => {
-                    addVideoStream(video, userVideoStream);
-                });
+        // Gelen aramayı yanıtla
+        peer.on('call', call => {
+            call.answer(localStream);
+            call.on('stream', remoteStream => {
+                document.getElementById('remote-video').srcObject = remoteStream;
+                document.getElementById('room-status').innerText = "Bağlantı Kuruldu!";
             });
-
-            window.connectToPeer = () => {
-                const id = document.getElementById('peer-id').value;
-                const call = peer.call(id, stream);
-                const video = document.createElement('video');
-                call.on('stream', userVideoStream => {
-                    addVideoStream(video, userVideoStream);
-                });
-            }
+            currentCall = call;
         });
+    }
 
-        peer.on('open', id => {
-            document.getElementById('my-id').innerText = id;
-        });
-
-        function addVideoStream(video, stream) {
-            video.srcObject = stream;
-            video.addEventListener('loadedmetadata', () => {
-                video.play();
-            });
-            videoGrid.append(video);
-        }
-    </script>
+    function toggleAudio() {
+        const enabled = localStream.getAudioTracks()[0].enabled;
+        localStream.getAudioTracks()[0].enabled = !enabled;
+        event.target.innerText = enabled ? "Sesi Aç" : "Sesi Kapat";
+    }
+</script>
 </body>
 </html>
