@@ -8,51 +8,51 @@ const app = express();
 const server = http.createServer(app);
 const io = new Server(server);
 
-const peerServer = ExpressPeerServer(server, {
-    debug: true,
-    path: '/'
-});
+const peerServer = ExpressPeerServer(server, { debug: true, path: '/' });
 
 app.use('/peerjs', peerServer);
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Oda bilgilerini tutan obje (Firebase mantığı gibi)
-const rooms = {};
+// Aktif odaları tutan obje
+let activeRooms = {}; 
 
 io.on('connection', (socket) => {
+    // Bağlanan kişiye mevcut odaları gönder
+    socket.emit('rooms-update', Object.values(activeRooms));
+
     socket.on('join-room', (roomId, userId, userName) => {
-        if (!rooms[roomId]) {
-            rooms[roomId] = { participants: [] };
+        // Oda yoksa oluştur
+        if (!activeRooms[roomId]) {
+            activeRooms[roomId] = { id: roomId, name: roomId, count: 0, participants: [] };
         }
-        
-        // Odaya 2'den fazla kişi girmesini engelle (Flutter kuralı)
-        if (rooms[roomId].participants.length >= 2) {
-            socket.emit('room-full');
+
+        // Dolu oda kontrolü (Max 2 kişi - Flutter kuralın)
+        if (activeRooms[roomId].count >= 2) {
+            socket.emit('error-msg', 'Bu oda şu an dolu!');
             return;
         }
 
-        rooms[roomId].participants.push({ id: userId, name: userName });
-        socket.join(roomId);
+        // Odaya ekle
+        activeRooms[roomId].count++;
+        activeRooms[roomId].participants.push({ socketId: socket.id, userId, userName });
         
-        // Diğer kullanıcıya yeni birinin geldiğini haber ver
+        socket.join(roomId);
+        io.emit('rooms-update', Object.values(activeRooms)); // Herkese listeyi güncelle
         socket.to(roomId).emit('user-connected', userId, userName);
 
         socket.on('disconnect', () => {
-            rooms[roomId].participants = rooms[roomId].participants.filter(p => p.id !== userId);
-            if (rooms[roomId].participants.length === 0) delete rooms[roomId];
-            socket.to(roomId).emit('user-disconnected', userId);
+            if (activeRooms[roomId]) {
+                activeRooms[roomId].count--;
+                activeRooms[roomId].participants = activeRooms[roomId].participants.filter(p => p.socketId !== socket.id);
+                
+                if (activeRooms[roomId].count <= 0) {
+                    delete activeRooms[roomId];
+                }
+                io.emit('rooms-update', Object.values(activeRooms));
+                socket.to(roomId).emit('user-disconnected', userId);
+            }
         });
     });
-
-    // Aktif odaları listeleme (Flutter'daki StreamBuilder için)
-    socket.on('get-active-rooms', () => {
-        socket.emit('rooms-list', Object.keys(rooms).map(id => ({
-            id: id,
-            count: rooms[id].participants.length
-        })));
-    });
 });
 
-server.listen(process.env.PORT || 3000, () => {
-    console.log("Konisma Sunucusu Yayında!");
-});
+server.listen(process.env.PORT || 3000, () => console.log("Sunucu Hazır!"));
