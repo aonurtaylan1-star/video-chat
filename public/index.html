@@ -3,60 +3,71 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Konisma - Split Screen</title>
+    <title>Konisma - Kesin Bölünmüş Ekran</title>
     <script src="/socket.io/socket.io.js"></script>
     <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
     <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet">
     <style>
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; background: #000; overflow: hidden; font-family: sans-serif; }
-        
-        /* GİRİŞ EKRANI */
-        #home-page { position: fixed; width: 100%; height: 100%; background: #f0f2f5; z-index: 100; display: flex; justify-content: center; align-items: center; }
-        .setup-box { background: white; padding: 30px; border-radius: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.1); width: 85%; max-width: 400px; text-align: center; }
-        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; }
-        .btn { background: #3f51b5; color: white; border: none; padding: 12px; width: 100%; border-radius: 10px; font-weight: bold; cursor: pointer; }
+        /* Ekranın dışına taşmayı ve kaydırmayı engelle */
+        html, body { 
+            margin: 0; padding: 0; width: 100%; height: 100%; 
+            overflow: hidden; background: #000; font-family: sans-serif;
+        }
 
-        /* VİDEO EKRANI - %50 %50 BÖLÜNMÜŞ */
-        #video-page { display: none; flex-direction: column; width: 100%; height: 100vh; }
-        
+        /* GİRİŞ EKRANI */
+        #home-page { 
+            position: fixed; width: 100%; height: 100%; 
+            background: #f0f2f5; z-index: 1000; 
+            display: flex; justify-content: center; align-items: center; 
+        }
+        .setup-box { background: white; padding: 30px; border-radius: 20px; width: 80%; max-width: 350px; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.1); }
+        input { width: 100%; padding: 12px; margin: 10px 0; border: 1px solid #ddd; border-radius: 10px; box-sizing: border-box; }
+        .btn { background: #3f51b5; color: white; border: none; padding: 12px; width: 100%; border-radius: 10px; cursor: pointer; font-weight: bold; }
+
+        /* VİDEO SAYFASI - DİKEY TAM BÖLÜNME */
+        #video-page { 
+            display: none; 
+            flex-direction: column; 
+            width: 100vw; 
+            height: 100vh; /* Ekranın tamamını kullan */
+        }
+
         .v-container { 
-            flex: 1; 
-            position: relative; 
-            width: 100%; 
-            height: 50%; /* Ekranın yarısı */
+            position: relative;
+            width: 100%;
+            height: 50vh; /* EKRANIN TAM YARISI */
+            overflow: hidden;
+            background: #111;
             border-bottom: 2px solid #000;
-            background: #1a1a1a;
         }
 
         video { 
             width: 100%; 
             height: 100%; 
-            object-fit: cover; /* Kaspersky tarzı tam dolum */
+            object-fit: cover; /* Kaspersky tarzı: Boşluk bırakmadan doldur */
         }
 
         .name-label { 
-            position: absolute; 
-            bottom: 20px; 
-            left: 20px; 
-            background: rgba(0,0,0,0.6); 
-            color: white; 
-            padding: 6px 15px; 
-            border-radius: 20px; 
-            font-size: 14px; 
+            position: absolute; bottom: 20px; left: 20px; 
+            background: rgba(0,0,0,0.6); color: white; 
+            padding: 6px 15px; border-radius: 20px; font-size: 14px;
+            backdrop-filter: blur(5px);
+            z-index: 5;
         }
 
-        /* KONTROLLER */
+        /* KONTROLLER - VİDEONUN ÜZERİNDE YÜZER */
         .controls { 
-            position: absolute; 
-            bottom: 30px; 
-            width: 100%; 
-            display: flex; 
-            justify-content: center; 
-            gap: 25px; 
-            z-index: 10; 
+            position: absolute; bottom: 30px; left: 0; width: 100%;
+            display: flex; justify-content: center; gap: 20px; 
+            z-index: 100; 
         }
-        .c-btn { width: 55px; height: 55px; border-radius: 50%; border: none; background: rgba(255,255,255,0.2); color: white; cursor: pointer; backdrop-filter: blur(10px); display: flex; align-items: center; justify-content: center; }
-        .hangup { background: #ff4757; }
+        .c-btn { 
+            width: 55px; height: 55px; border-radius: 50%; border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(0,0,0,0.5); color: white; cursor: pointer; 
+            display: flex; align-items: center; justify-content: center;
+            backdrop-filter: blur(10px);
+        }
+        .hangup { background: #ff4757 !important; }
     </style>
 </head>
 <body>
@@ -67,24 +78,24 @@
         <input type="text" id="user-name" placeholder="Adınız">
         <input type="text" id="room-id" placeholder="Oda Adı">
         <button class="btn" onclick="startCall()">BAŞLAT</button>
-        <div id="room-list" style="margin-top:20px; text-align:left;"></div>
     </div>
 </div>
 
 <div id="video-page">
-    <div class="v-container">
+    <div class="v-container" id="local-area">
         <video id="local-video" autoplay muted playsinline></video>
         <div class="name-label" id="local-name">Siz</div>
     </div>
     
-    <div class="v-container">
+    <div class="v-container" id="remote-area">
         <video id="remote-video" autoplay playsinline></video>
-        <div class="name-label" id="remote-name">Bekleniyor...</div>
+        <div class="name-label" id="remote-name">Bağlantı Bekleniyor...</div>
     </div>
 
     <div class="controls">
         <button class="c-btn" onclick="toggleMic()"><span class="material-icons" id="m-icon">mic</span></button>
         <button class="c-btn hangup" onclick="location.reload()"><span class="material-icons">call_end</span></button>
+        <button class="c-btn" onclick="toggleCam()"><span class="material-icons" id="v-icon">videocam</span></button>
     </div>
 </div>
 
@@ -96,39 +107,39 @@
     async function startCall() {
         const uName = document.getElementById('user-name').value;
         const rId = document.getElementById('room-id').value;
-        if(!uName || !rId) return alert("Eksik bilgi!");
+        if(!uName || !rId) return alert("Bilgileri girin!");
 
         document.getElementById('home-page').style.display = 'none';
         document.getElementById('video-page').style.display = 'flex';
         document.getElementById('local-name').innerText = uName;
 
-        // 1. Kamerayı Aç
-        myStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
-        document.getElementById('local-video').srcObject = myStream;
+        try {
+            myStream = await navigator.mediaDevices.getUserMedia({video: true, audio: true});
+            document.getElementById('local-video').srcObject = myStream;
+        } catch(e) {
+            alert("Kamera izni verilmedi!");
+        }
 
-        // 2. PeerJS Başlat
         myPeer = new Peer(undefined, { path: '/peerjs', host: '/', port: '443', secure: true });
 
         myPeer.on('open', id => {
             socket.emit('join-room', rId, id, uName);
         });
 
-        // 3. Arama Geldiğinde (Karşı taraf bağlandığında görüntüyü al)
+        // BİRİ SİZİ ARADIĞINDA
         myPeer.on('call', call => {
             call.answer(myStream);
-            call.on('stream', userVideoStream => {
-                const remoteVid = document.getElementById('remote-video');
-                remoteVid.srcObject = userVideoStream;
+            call.on('stream', userStream => {
+                document.getElementById('remote-video').srcObject = userStream;
                 document.getElementById('remote-name').innerText = "Bağlandı";
             });
         });
 
-        // 4. Yeni bir kullanıcı bağlandığında onu ara
+        // SİZ BİRİNE BAĞLANDIĞINIZDA
         socket.on('user-connected', (userId, userName) => {
             const call = myPeer.call(userId, myStream);
-            call.on('stream', userVideoStream => {
-                const remoteVid = document.getElementById('remote-video');
-                remoteVid.srcObject = userVideoStream;
+            call.on('stream', userStream => {
+                document.getElementById('remote-video').srcObject = userStream;
                 document.getElementById('remote-name').innerText = userName;
             });
         });
@@ -138,6 +149,12 @@
         const enabled = myStream.getAudioTracks()[0].enabled;
         myStream.getAudioTracks()[0].enabled = !enabled;
         document.getElementById('m-icon').innerText = enabled ? 'mic_off' : 'mic';
+    }
+
+    function toggleCam() {
+        const enabled = myStream.getVideoTracks()[0].enabled;
+        myStream.getVideoTracks()[0].enabled = !enabled;
+        document.getElementById('v-icon').innerText = enabled ? 'videocam_off' : 'videocam';
     }
 </script>
 </body>
